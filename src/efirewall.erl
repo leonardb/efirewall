@@ -83,7 +83,7 @@ mk_key({{A, B, C, D} = Ip, N}) ->
             Err;
         _ ->
             X = io_lib:format(?IPV4_FORMAT, [A, B, C, D]),
-            {ok, lists:sublist(X, N) ++ wildcard(N, 32)}
+            {ok, "4" ++ lists:sublist(X, N) ++ wildcard(N, 32)}
     end;
 mk_key({{A, B, C, D, E, F, G, H} = Ip, N}) ->
     case inet:ntoa(Ip) of
@@ -91,7 +91,7 @@ mk_key({{A, B, C, D, E, F, G, H} = Ip, N}) ->
             Err;
         _ ->
             X = io_lib:format(?IPV6_FORMAT, [A, B, C, D, E, F, G, H]),
-            {ok, lists:sublist(X, N) ++ wildcard(N, 128)}
+            {ok, "6" ++ lists:sublist(X, N) ++ wildcard(N, 128)}
     end.
 
 mk_match({A, B, C, D} = Ip) ->
@@ -99,14 +99,14 @@ mk_match({A, B, C, D} = Ip) ->
         {error, einval} = Err ->
             Err;
         _ ->
-            {ok, io_lib:format(?IPV4_FORMAT, [A, B, C, D])}
+            {ok, "4" ++ io_lib:format(?IPV4_FORMAT, [A, B, C, D])}
     end;
 mk_match({A, B, C, D, E, F, G, H} = Ip) ->
     case inet:ntoa(Ip) of
         {error,einval} = Err ->
             Err;
         _ ->
-            {ok, io_lib:format(?IPV6_FORMAT, [A, B, C, D, E, F, G, H])}
+            {ok, "6" ++ io_lib:format(?IPV6_FORMAT, [A, B, C, D, E, F, G, H])}
     end.
 
 wildcard(Mask, Mask) -> "";
