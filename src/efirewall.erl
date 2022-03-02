@@ -8,13 +8,13 @@
 
 -export([ip2long/1, long2ipv4/1, long2ipv6/1]).
 
--type fw_name()             :: atom().
--type cidr()                :: {inet:ipv4_address(), 0..32} |
-                               {inet:ipv6_address(), 0..128}.
--type cidr_with_reason()    :: {cidr(), binary()}.
+-type fw_name() :: atom().
+-type cidr()    :: {inet:ipv4_address(), 0..32} |
+                   {inet:ipv6_address(), 0..128}.
+-type entry()   :: {cidr(), accept | reject, binary()}.
 
 -export_type([fw_name/0,
-              cidr_with_reason/0,
+              entry/0,
               cidr/0]).
 
 -define(fw(FwName), persistent_term:get(FwName)).
@@ -35,17 +35,17 @@ dump(FwName) ->
     [Res || {_, Res} <- trie:to_list(?fw(FwName))].
 
 %% @doc Add CIDRs to a firewall
--spec add(fw_name(), [cidr_with_reason()]) -> ok.
-add(FwName, Ranges) when is_atom(FwName) andalso is_list(Ranges) ->
+-spec add(fw_name(), [entry()]) -> ok.
+add(FwName, Entries) when is_atom(FwName) andalso is_list(Entries) ->
     case persistent_term:get(FwName, missing) of
         missing ->
             {error, missing_firewall};
         FwData ->
-            persistent_term:put(FwName, add_ranges(Ranges, FwData))
+            persistent_term:put(FwName, add_entries(Entries, FwData))
     end.
 
 %% @doc Check if an IP address is blocked
--spec lookup(fw_name(), inet:ip_address()) -> not_found | binary().
+-spec lookup(fw_name(), inet:ip_address()) -> not_found | {accept | reject, binary()}.
 lookup(FwName, {_, _, _, _} = Ip) ->
     do_lookup(FwName, Ip);
 lookup(FwName, {_, _, _, _, _, _, _, _} = Ip) ->
@@ -62,20 +62,24 @@ do_lookup(FwName, Ip) ->
     case trie:find_match(Match, ?fw(FwName)) of
         error ->
             not_found;
-        {ok, _, {_Cidr, Reason}} ->
-            Reason
+        {ok, _, {_Cidr, Action, Reason}} ->
+            {Action, Reason}
     end.
 
-add_ranges([], FwData) ->
+add_entries([], FwData) ->
     FwData;
-add_ranges([{{{_, _, _, _}, _} = Cidr, Reason} = D | T], FwData) when is_binary(Reason) ->
+add_entries([{{{_, _, _, _}, _} = Cidr, Action, Reason} = D | T], FwData)
+  when is_binary(Reason) andalso
+       (Action =:= accept orelse Action =:= reject) ->
     {ok, Key} = mk_key(Cidr),
     StoreRes = trie:store(Key, D, FwData),
-    add_ranges(T, StoreRes);
-add_ranges([{{{_, _, _, _, _, _, _, _}, _} = Cidr, Reason} = D | T], FwData) when is_binary(Reason) ->
+    add_entries(T, StoreRes);
+add_entries([{{{_, _, _, _, _, _, _, _}, _} = Cidr, Action, Reason} = D | T], FwData)
+  when is_binary(Reason) andalso
+       (Action =:= accept orelse Action =:= reject) ->
     {ok, Key} = mk_key(Cidr),
     StoreRes = trie:store(Key, D, FwData),
-    add_ranges(T, StoreRes).
+    add_entries(T, StoreRes).
 
 mk_key({{A, B, C, D} = Ip, N}) ->
     case inet:ntoa(Ip) of

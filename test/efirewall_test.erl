@@ -6,17 +6,19 @@ efw_v4_test_() ->
     NotAllowed  = {{192, 168, 100, 0}, 24},
     Allowed     = {{192, 168, 101, 0}, 24},
     efirewall:new(test_fw),
-    ok = efirewall:add(test_fw, [{{{192, 168, 100, 0}, 24}, <<"reserved_ip">>}]),
-    [?_assert(pass =:= do_test_range(<<"reserved_ip">>, NotAllowed)),
-        ?_assert(pass =:= do_test_range(not_found, Allowed))].
+    ok = efirewall:add(test_fw, [{{{192, 168, 100, 0}, 24}, reject, <<"reserved_ip">>}]),
+    ok = efirewall:add(test_fw, [{{{192, 168, 101, 0}, 24}, accept, <<"trusted_range">>}]),
+    [?_assert(pass =:= do_test_range({reject, <<"reserved_ip">>}, NotAllowed)),
+     ?_assert(pass =:= do_test_range({accept, <<"trusted_range">>}, Allowed)),
+     ?_assert(pass =:= do_test_range(not_found, {{127,0,0,1}, 24}))].
 
 efw_v6_test_() ->
     NotAllowed = [{{10758,39104,13824,0,0,0,0,0}, 125},
-        {{10758,39104,13824,0,0,0,16,0}, 125}],
+                  {{10758,39104,13824,0,0,0,16,0}, 125}],
     efirewall:new(test_fw),
-    ok = efirewall:add(test_fw, [{R, <<"reserved_ip">>} || R <- NotAllowed]),
-    [?_assert(pass =:= do_test_range(<<"reserved_ip">>, lists:nth(1, NotAllowed))),
-        ?_assert(pass =:= do_test_range(<<"reserved_ip">>, lists:nth(2, NotAllowed)))].
+    ok = efirewall:add(test_fw, [{R, reject, <<"reserved_ip">>} || R <- NotAllowed]),
+    [?_assert(pass =:= do_test_range({reject, <<"reserved_ip">>}, lists:nth(1, NotAllowed))),
+     ?_assert(pass =:= do_test_range({reject, <<"reserved_ip">>}, lists:nth(2, NotAllowed)))].
 
 do_test_range(Required, {{_, _, _, _} = Ip, MaskBits}) ->
     IpsInMask = ips_in_mask(MaskBits, 32),
