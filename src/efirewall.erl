@@ -60,7 +60,7 @@ remove(FwName, Entries) when is_atom(FwName) andalso is_list(Entries) ->
                                      {ok, Key} = mk_match(Ip),
                                      trie:erase(Key, Acc)
                              end, FwData0, Entries),
-            persistent_term:put(FwName, Trie1)
+            persistent_term:put(FwName, FwData)
     end.
 
 %% @doc Check if an IP address is blocked
