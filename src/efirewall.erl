@@ -4,6 +4,7 @@
          new/1,
          flush/1,
          add/2,
+         remove/2,
          dump/1]).
 
 -export([ip2long/1, long2ipv4/1, long2ipv6/1]).
@@ -42,6 +43,24 @@ add(FwName, Entries) when is_atom(FwName) andalso is_list(Entries) ->
             {error, missing_firewall};
         FwData ->
             persistent_term:put(FwName, add_entries(Entries, FwData))
+    end.
+
+%% @doc Remove IPs from a firewall
+-spec remove(fw_name(), [inet:ip_address()]) -> ok.
+remove(FwName, Entries) when is_atom(FwName) andalso is_list(Entries) ->
+    case persistent_term:get(FwName, missing) of
+        missing ->
+            {error, missing_firewall};
+        FwData0 ->
+            FwData = lists:foldl(
+                             fun({_, _, _, _} = Ip, Acc) ->
+                                     {ok, Key} = mk_match(Ip),
+                                     trie:erase(Key, Acc);
+                                ({_, _, _, _, _, _, _, _} = Ip, Acc) ->
+                                     {ok, Key} = mk_match(Ip),
+                                     trie:erase(Key, Acc)
+                             end, FwData0, Entries),
+            persistent_term:put(FwName, Trie1)
     end.
 
 %% @doc Check if an IP address is blocked
